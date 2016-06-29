@@ -1,14 +1,39 @@
 import json
+import random
+import time
+import sys
+import iothub_client
+from iothub_client import *
+from iothub_client_args import *
 
 class AzureIOTHub:
 	deviceId = ""
-	hostname = ""
-
+	connectionString = ""
+	protocol = IoTHubTransportProvider.AMQP
+	iotHubClient = None
 	callBacks = {}
 
-	def __init__(self, deviceId, hostname):
+
+	def __init__(self, deviceId, connectionString):
 		self.deviceId = deviceId
-		self.hostname = hostname
+		self.connectionString = connectionString
+
+	def hubConnect(self):
+		#(connectionString, protocol) = get_iothub_opt("?", connection_string, protocol)
+		self.iotHubClient = IoTHubClient(connection_string, protocol)
+		self.iotHubClient.set_message_callback(self.hubMsgCallBack)
+
+	def hubMsgCallBack(self, message):
+		msg_properties = message.properties
+		msg_key_value = msg_properties.get_internals()
+		print msg_key_value
+
+		#todo add code to get messages for callback
+
+		return IoTHubMessageDispositionResult.ACCEPTED
+
+	def hubMsgConfirmCallBack(self, message, result):
+		print "ConfirmCallback:" + str(result)	
 
 	def buildDeviceInfoMessage(self):
 		#Build object hierarchiy and convert to json
@@ -46,6 +71,10 @@ class AzureIOTHub:
 		print("---- START MESSAGE -------")
 		print json.dumps(data)
 		print("----  END MESSAGE  -------")
+
+		#send message using iothub
+		hubMessage = IoTHubMessage(json.dumps(data))
+		self.iotHubClient.send_event_async(message, self.hubMsgConfirmCallBack)
 
 	def sendSensorData(self, name, value):
 		msg = {"deviceId" : self.deviceId, \
