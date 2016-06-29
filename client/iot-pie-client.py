@@ -7,9 +7,14 @@ import time
 dhtType = 11
 dhtPin = 17
 
+def dummy(bla):
+    print bla
 
 azure = AzureIOTHub('devid','host')
 
+azure.registerCallBack(dummy, "dummycmd")
+
+azure.updateDeviceState()
 
 while True:
 	humidity, temperature = Adafruit_DHT.read_retry(dhtType, dhtPin)
