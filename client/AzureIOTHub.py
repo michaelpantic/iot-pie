@@ -4,23 +4,23 @@ import time
 import sys
 import iothub_client
 from iothub_client import *
-from iothub_client_args import *
 
 class AzureIOTHub:
 	deviceId = ""
+    connectionStringTemplate = "HostName={0};DeviceId={1};SharedAccessKey={2}"
 	connectionString = ""
 	protocol = IoTHubTransportProvider.AMQP
 	iotHubClient = None
 	callBacks = {}
 
 
-	def __init__(self, deviceId, connectionString):
+	def __init__(self, deviceId, hostName, sharedKey):
 		self.deviceId = deviceId
-		self.connectionString = connectionString
+		self.connectionString = connectionStringTemplate.format(hostName, deviceId, sharedKey)
 
 	def hubConnect(self):
 		#(connectionString, protocol) = get_iothub_opt("?", connection_string, protocol)
-		self.iotHubClient = IoTHubClient(connection_string, protocol)
+		self.iotHubClient = IoTHubClient(self.connection_string, self.protocol)
 		self.iotHubClient.set_message_callback(self.hubMsgCallBack)
 
 	def hubMsgCallBack(self, message):
@@ -33,7 +33,7 @@ class AzureIOTHub:
 		return IoTHubMessageDispositionResult.ACCEPTED
 
 	def hubMsgConfirmCallBack(self, message, result):
-		print "ConfirmCallback:" + str(result)	
+		print "ConfirmCallback:" + str(result)
 
 	def buildDeviceInfoMessage(self):
 		#Build object hierarchiy and convert to json
@@ -61,7 +61,7 @@ class AzureIOTHub:
 
 		#send message
 		self.sendJSONMessage(msg_header_obj)
-		
+
 	def updateDeviceState(self):
 		print("Device state update")
 		self.buildDeviceInfoMessage()
@@ -94,7 +94,6 @@ class AzureIOTHub:
 	def simulateCallBack(self, command, argument):
 		function = self.callBacks[command]
 		function(argument)
-
 
 
 
