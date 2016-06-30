@@ -6,94 +6,103 @@ import iothub_client
 from iothub_client import *
 
 class AzureIOTHub:
-	deviceId = ""
+    deviceId = ""
     connectionStringTemplate = "HostName={0};DeviceId={1};SharedAccessKey={2}"
-	connectionString = ""
-	protocol = IoTHubTransportProvider.AMQP
-	iotHubClient = None
-	callBacks = {}
+    connectionString = ""
+    protocol = IoTHubTransportProvider.AMQP
+    iotHubClient = None
+    callBacks = {}
+    verbose = False
 
 
-	def __init__(self, deviceId, hostName, sharedKey):
-		self.deviceId = deviceId
-		self.connectionString = connectionStringTemplate.format(hostName, deviceId, sharedKey)
+    def __init__(self, deviceId, hostName, sharedKey):
+        self.deviceId = deviceId
+        self.connectionString = self.connectionStringTemplate.format(hostName, deviceId, sharedKey)
 
-	def hubConnect(self):
-		#(connectionString, protocol) = get_iothub_opt("?", connection_string, protocol)
-		self.iotHubClient = IoTHubClient(self.connection_string, self.protocol)
-		self.iotHubClient.set_message_callback(self.hubMsgCallBack)
+    def hubConnect(self):
+        self.iotHubClient = IoTHubClient(self.connectionString, self.protocol)
+        self.iotHubClient.set_message_callback(self.hubMsgCallBack, None)
 
-	def hubMsgCallBack(self, message):
-		msg_properties = message.properties
-		msg_key_value = msg_properties.get_internals()
-		print msg_key_value
+    def hubMsgCallBack(self, message, context):
+        #get message as object
+        buffer =  message.get_bytearray()
+        size = len(buffer)
+        strMessage =  buffer[:size].decode('utf-8')
+        objMessage = json.loads(strMessage)
 
-		#todo add code to get messages for callback
+        parameter = objMessage["Parameters"]["arg0"]
+        name = objMessage["Name"]
 
-		return IoTHubMessageDispositionResult.ACCEPTED
+        funCallBack = self.callBacks[name]
+        funCallBack(parameter)
 
-	def hubMsgConfirmCallBack(self, message, result):
-		print "ConfirmCallback:" + str(result)
+        return IoTHubMessageDispositionResult.ACCEPTED
 
-	def buildDeviceInfoMessage(self):
-		#Build object hierarchiy and convert to json
-		msg_device_properties = {"DeviceID": self.deviceId, \
-				 	 "HubEnabledState": True \
-					}
+    def hubMsgConfirmCallBack(self, message, result, context):
+        if self.verbose:
+            print "ConfirmCallback:" + str(result)
 
-		#build list with callbacks
-		msg_commands = []
-		for key in self.callBacks:
-			msg_command_param = {"Name": "arg0", \
-	 				    "Type": "double"\
-						}
+    def buildDeviceInfoMessage(self):
+        #Build object hierarchiy and convert to json
+        msg_device_properties = {"DeviceID": self.deviceId, \
+                      "HubEnabledState": True \
+                    }
 
-		msg_commands.append({"Name": key, \
-				     "Parameters" : msg_command_param \
-				    })
-		#assemble message
-		msg_header_obj = {"ObjectType": "DeviceInfo", \
-				"Version": "1.0", \
-				"IsSimulatedDevice" : False, \
-			 	"DeviceProperties" : msg_device_properties, \
-				"Commands" : msg_commands \
-				 }
+        #build list with callbacks
+        msg_commands = []
+        for key in self.callBacks:
+            msg_command_param = [{"Name": "arg0", \
+                         "Type": "double"\
+                        }]
 
-		#send message
-		self.sendJSONMessage(msg_header_obj)
+        msg_commands.append({"Name": key, \
+                     "Parameters" : msg_command_param \
+                    })
+        #assemble message
+        msg_header_obj = {"ObjectType": "DeviceInfo", \
+                "Version": "1.0", \
+                "IsSimulatedDevice" : False, \
+                 "DeviceProperties" : msg_device_properties, \
+                "Commands" : msg_commands \
+                 }
 
-	def updateDeviceState(self):
-		print("Device state update")
-		self.buildDeviceInfoMessage()
+        #send message
+        self.sendJSONMessage(msg_header_obj)
 
+    def updateDeviceState(self):
+        if self.verbose:
+            print("Device state update")
 
-	def sendJSONMessage(self, data):
-		print("---- START MESSAGE -------")
-		print json.dumps(data)
-		print("----  END MESSAGE  -------")
-
-		#send message using iothub
-		hubMessage = IoTHubMessage(json.dumps(data))
-		self.iotHubClient.send_event_async(message, self.hubMsgConfirmCallBack)
-
-	def sendSensorData(self, name, value):
-		msg = {"deviceId" : self.deviceId, \
-			name : value,\
-		      }
-		self.sendJSONMessage(msg)
-
-	def sendMultipleSensorData(self, dictionary):
-		# reuse data dictionary as message
-		dictionary["deviceId"] = self.deviceId
-		self.sendJSONMessage(dictionary)
+        self.buildDeviceInfoMessage()
 
 
-	def registerCallBack(self, function, command):
-		self.callBacks[command] = function
+    def sendJSONMessage(self, data):
+        if self.verbose:
+            print("---- START MESSAGE -------")
+            print json.dumps(data)
+            print("----  END MESSAGE  -------")
 
-	def simulateCallBack(self, command, argument):
-		function = self.callBacks[command]
-		function(argument)
+        #send message using iothub
+        hubMessage = IoTHubMessage(json.dumps(data))
+        self.iotHubClient.send_event_async(hubMessage, self.hubMsgConfirmCallBack, None)
+
+    def sendSensorData(self, name, value):
+        msg = {"deviceId" : self.deviceId, \
+            name : value}
+        self.sendJSONMessage(msg)
+
+    def sendMultipleSensorData(self, dictionary):
+        # reuse data dictionary as message
+        dictionary["deviceId"] = self.deviceId
+        self.sendJSONMessage(dictionary)
+
+
+    def registerCallBack(self, function, command):
+        self.callBacks[command] = function
+
+    def simulateCallBack(self, command, argument):
+        function = self.callBacks[command]
+        function(argument)
 
 
 
