@@ -12,7 +12,8 @@ class AzureIOTHub:
     protocol = IoTHubTransportProvider.AMQP
     iotHubClient = None
     callBacks = {}
-    verbose = False
+    wgs84_position = [47.22274, 8.81642]
+    verbose = True
 
 
     def __init__(self, deviceId, hostName, sharedKey):
@@ -45,7 +46,9 @@ class AzureIOTHub:
     def buildDeviceInfoMessage(self):
         #Build object hierarchiy and convert to json
         msg_device_properties = {"DeviceID": self.deviceId, \
-                      "HubEnabledState": True \
+                      "HubEnabledState": True, \
+                      "Latitude":  self.wgs84_position[0],\
+                      "Longitude":  self.wgs84_position[1]\
                     }
 
         #build list with callbacks
@@ -55,7 +58,7 @@ class AzureIOTHub:
                          "Type": "double"\
                         }]
 
-        msg_commands.append({"Name": key, \
+            msg_commands.append({"Name": key, \
                      "Parameters" : msg_command_param \
                     })
         #assemble message

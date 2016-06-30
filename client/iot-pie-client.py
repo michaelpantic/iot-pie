@@ -36,6 +36,8 @@ azure = AzureIOTHub(args.deviceId, args.hostName, args.sharedKey)
 azure.registerCallBack(setServoCallBack, "SetServoAngle")
 azure.hubConnect()
 azure.updateDeviceState()
+temperature = 0.0
+humidity = 0.0
 
 while True:
     humidity, temperature = Adafruit_DHT.read_retry(dhtType, dhtPin)

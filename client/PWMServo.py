@@ -24,7 +24,7 @@ class PWMServo:
     def setValue(self, angle):
         self.angle = self.calcDutyCycle(angle)
         self.pwm.ChangeDutyCycle(self.angle)
-        time.sleep(0.1)
+        time.sleep(2)
         self.pwm.ChangeDutyCycle(0)
 
     def stopHW(self):
